@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<title>Live Scoreboard</title>
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans","Segoe UI",sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(1200px 600px at 80% -10%,#3a0d1a 0%,transparent 60%),radial-gradient(900px 500px at 0% 110%,#173f75 0%,transparent 60%),#0b1f3a}
+header{padding:18px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);position:relative}
+header:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:linear-gradient(90deg,#c8102e,#d4a72c,#c8102e)}
+h1{margin:0;font-size:24px;font-weight:800}
+.live{background:#c8102e;color:#fff;font-weight:800;padding:6px 14px;border-radius:999px;font-size:14px;animation:blink 1.6s infinite}@keyframes blink{50%{opacity:.55}}
+main{flex:1;padding:28px;display:flex;flex-direction:column;gap:22px;align-items:center;justify-content:center}
+.game{font-size:46px;font-weight:800;text-align:center;letter-spacing:-.5px;animation:rise .5s}
+.round{font-size:22px;opacity:.85;text-align:center}
+.scores{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;width:100%}
+.sc{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(8px);border-radius:26px;padding:22px 36px;min-width:230px;text-align:center;font-size:22px;font-weight:700;animation:rise .5s}
+.sc b{display:block;font-size:110px;line-height:1.05;font-weight:800;animation:pop .5s}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.sc.lead{border-color:#d4a72c;box-shadow:0 0 0 3px #d4a72c,0 20px 50px rgba(212,167,44,.25)}
+.A{color:#7cb6ff}.B{color:#ffae66}
+.fact{background:rgba(255,255,255,.06);border-left:4px solid #c8102e;border-radius:14px;padding:12px 18px;font-size:19px;width:min(900px,100%);animation:rise .5s}
+.fact small{display:block;opacity:.7;font-size:14px}
+.win{font-size:60px;font-weight:800;text-align:center;background:linear-gradient(90deg,#ffd166,#ff7a8a);-webkit-background-clip:text;background-clip:text;color:transparent;animation:pop .6s}
+.board{width:min(720px,100%);background:rgba(255,255,255,.05);border-radius:20px;padding:10px 18px}.board h2{margin:8px 0}.board div{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.08);font-size:19px}
+</style></head><body>
+<header><h1>📺 Live Scoreboard — Family AI Game Day</h1><span class="live">● LIVE</span></header>
+<main id="m"><div class="game">Waiting for the game to start…</div></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(s){
+  const m=document.getElementById('m');
+  if(!s||s.status==='waiting'){m.innerHTML='<div class="game">Waiting for the game to start…</div>';loadBoard();return;}
+  const entries=Object.entries(s.scores||{});const top=Math.max(...entries.map(e=>e[1]),0);
+  m.innerHTML=`<div class="game">${esc(s.gameEm)} ${esc(s.gameName)}</div>
+   ${s.status==='final'?`<div class="win">${esc(s.headline)}</div>`:`<div class="round">${esc(s.roundLabel)}</div>`}
+   <div class="scores">${entries.map(([c,v])=>`<div class="sc ${v===top&&top>0?'lead':''} ${c==='A'?'A':c==='B'?'B':''}">${esc(c==='A'?'Team A':c==='B'?'Team B':c)}<b>${Math.round(v*10)/10}</b></div>`).join('')}</div>
+   ${s.mvp?`<div class="round">🏅 MVP: ${esc(s.mvp)}</div>`:''}
+   ${(s.lastFacts||[]).map(f=>`<div class="fact">🤖 ${esc(f.text)}<small>${esc(f.reason)}${f.verified?' — 🔐 signed & verified report':''}</small></div>`).join('')}`;
+  if(s.status==='final')loadBoard();
+}
+async function loadBoard(){try{const b=useServer?await (await fetch('/api/leaderboard')).json():localBoard();if(!b.length)return;
+  document.getElementById('m').insertAdjacentHTML('beforeend',`<div class="board"><h2>🏆 Family leaderboard</h2>${b.slice(0,8).map((p,i)=>`<div><span>${i+1}. ${esc(p.name)}</span><span>${p.wins} wins · ${p.mvp} MVP · ${Math.round(p.points)} pts</span></div>`).join('')}</div>`);}catch(e){}}
+function localBoard(){let ms=[];try{ms=JSON.parse(localStorage.getItem('fagd_matches'))||[]}catch(e){}const b={};const add=n=>b[n]=b[n]||{name:n,wins:0,mvp:0,points:0};
+  for(const m of ms){(m.winnerPlayers||[]).forEach(w=>add(w).wins++);if(m.mvpName)add(m.mvpName).mvp++;for(const[p,v]of Object.entries(m.playerPts||{}))add(p).points+=+v||0;}
+  return Object.values(b).sort((a,c)=>c.wins-a.wins||c.mvp-a.mvp||c.points-a.points);}
+let useServer=true;
+fetch('/api/leaderboard',{cache:'no-store'}).then(r=>{useServer=r.ok&&(r.headers.get('content-type')||'').includes('json');}).catch(()=>useServer=false).finally(()=>{
+  if(useServer){const es=new EventSource('/events');es.onmessage=e=>render(JSON.parse(e.data));}
+  else{try{render(JSON.parse(localStorage.getItem('fagd_state')))}catch(e){render(null)}
+    if('BroadcastChannel' in window)new BroadcastChannel('fagd').onmessage=e=>render(e.data);
+    window.addEventListener('storage',e=>{if(e.key==='fagd_state')render(JSON.parse(e.newValue));});}});
+</script></body></html>

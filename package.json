@@ -1,0 +1,8 @@
+{
+  "name": "family-ai-game-day",
+  "version": "1.0.0",
+  "description": "Family AI Game Day - AI judge for family games",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
